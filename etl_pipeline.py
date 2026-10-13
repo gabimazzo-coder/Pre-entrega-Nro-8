@@ -13,17 +13,20 @@ logging.basicConfig(
 DB_NAME = "analytics_vault.sqlite"
 TABLE_NAME = "fact_ventas_mensuales"
 
-def extraer_datos() -> pd.DataFrame:
-    """Simula la extracción de datos desde una fuente local o remota."""
-    logging.info("Iniciando fase de EXTRACCIÓN...")
-    # Simulación de un dataset con datos crudos (ventas en tiendas)
-    data = {
-        "fecha": ["2026-01-15", "2026-01-20", "2026-02-11", "2026-02-14", None, "2026-03-01"],
-        "tienda": ["Norte", "Sur", "Norte", "Sur", "Este", "Norte"],
-        "monto": [150.50, 200.00, 350.00, 120.25, 99.99, -50.00],  # Incluye un valor negativo erróneo
-        "productos_vendidos": [5, 8, 12, 4, 2, 1]
-    }
-    return pd.DataFrame(data)
+def extraer_datos(file_path: str = "ventas_raw.csv") -> pd.DataFrame:
+    """Extrae datos desde un dataset local con control de excepciones."""
+    logging.info(f"Iniciando fase de EXTRACCIÓN desde {file_path}...")
+    try:
+        df = pd.read_csv(file_path)
+        logging.info(f"Extracción exitosa. Registros extraídos: {len(df)}")
+        return df
+    except FileNotFoundError:
+        logging.error(f"No se encontró el archivo fuente en la ruta: {file_path}")
+        raise
+    except Exception as e:
+        logging.error(f"Error inesperado durante la extracción: {e}")
+        raise
+
 
 def transformar_datos(df: pd.DataFrame) -> pd.DataFrame:
     """Realiza la limpieza de datos y una agregación básica."""
@@ -58,14 +61,20 @@ def cargar_datos(df: pd.DataFrame):
         
         # Diseño del esquema de la tabla de destino
         cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-                mes TEXT,
-                tienda TEXT,
-                total_ingresos REAL,
-                total_productos INTEGER,
-                transacciones INTEGER,
-                PRIMARY KEY (mes, tienda)
-            )
+        cursor.execute(f"""
+    CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+        mes TEXT,
+        tienda TEXT,
+        total_ingresos REAL,
+        total_productos INTEGER,
+        transacciones INTEGER,
+        PRIMARY KEY (mes, tienda)
+    )
+""")
+
+# Carga preservando el esquema definido:
+df.to_sql(TABLE_NAME, conn, if_exists="append", index=False)
+
         """)
         
         # Carga de datos utilizando la estrategia 'replace' para evitar duplicados
